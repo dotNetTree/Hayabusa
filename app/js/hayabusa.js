@@ -35,7 +35,17 @@ const Hayabusa = (() => {
 
       render (_ = vali(hb.template, T.isStr)) {
         const rootEl = document.createElement('div')
-        rootEl.innerHTML = this.template
+
+        let template = this.template
+        if (this.ds !== null) {
+          this.ds.forEach(compName => {
+            new RegExp(`<\\s*${compName}(?:\\/>|\\s+(?:.|\\s)*?\\/>)`, `g`)
+              .exec(template)
+              .forEach(match => { console.log(match) })
+          })
+        }
+
+        rootEl.innerHTML = template
 
         // guard
         if (rootEl.children.length !== 1) throw new Error('component는 단 하나의 root element로 작성하셔야 합니다.')
@@ -84,25 +94,29 @@ const Hayabusa = (() => {
 })()
 
 const extention1 = {
+  ds: ['HBComp2'],
   template: `
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
+    <HBComp2 />
   </div>`,
   listener: {
     '#kk click' () { console.log(this.compName) },
-    '#kk2 click' () { console.log(22222) }
+    '#kk2 click' () { console.log(this.ds) }
   }
 }
 
+const extention2 = {
+  template: `
+  <div>extention2</div>
+  `
+}
+
 const hbDom = Hayabusa({compName: `base3123`}).with(extention1)
-const hbDom2 = Hayabusa(hbDom).with({template: `<div>2222<base3123 /></div>`})
+const hbDom2 = Hayabusa({compName: `HBComp2`}).with(extention2)
 
 hbDom.insertAt('#test')
-hbDom2.insertAt('#test')
-hbDom.insertAt('#test')
-hbDom.insertAt('#test')
-hbDom2.insertAt('#test')
 
 
 
