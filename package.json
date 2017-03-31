@@ -1,0 +1,21 @@
+{
+  "name": "dotnettree",
+  "version": "0.0.1",
+  "description": "yanolja deeplink maker",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "yanolja"
+  ],
+  "author": "SeungChul Kang",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-core": "^6.24.0",
+    "babel-preset-es2015": "^6.24.0",
+    "gulp": "^3.9.1",
+    "gulp-connect": "^5.0.0",
+    "gulp-util": "^3.0.8"
+  }
+}
