@@ -47,9 +47,9 @@ const Hayabusa = (_ => {
               // 여기서 props를 취득한다.
               props[compName] = {}
               compTag
-                .match(/{\.\.\.+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
+                .match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
                 .forEach(attr => {
-
+                  console.log(attr)
                 })
               return `<div hb-dom=${compName}></div>`
             })
@@ -114,7 +114,7 @@ const extention1 = {
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
-    <HBComp2 id='111'/>
+    <HBComp2 id='111' num=3 list={list} {...spead}/>
   </div>`,
   listener: {
     '#kk click' () { console.log(this.compName) },
