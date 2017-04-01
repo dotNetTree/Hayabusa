@@ -1,4 +1,4 @@
-const Hayabusa = (() => {
+const Hayabusa = (_ => {
   const instance = (cls, arg) => Object.assign({ __proto__: cls }, arg || { })
   const chainof = (cls, target) => {
     while (target = target.__proto__) if (target === cls) return true
@@ -33,15 +33,26 @@ const Hayabusa = (() => {
 
       with: (...specs) => specs.reduce((accu, exSpec) => Object.assign(accu, exSpec), hb),
 
-      render (_ = vali(hb.template, T.isStr)) {
+      makeEl () {
         const rootEl = document.createElement('div')
 
         let template = this.template
+        let props = null
         if (this.ds !== null) {
+          props = {}
+          // template에서 dependancy로 설정된 single tag를 찾는다.
           this.ds.forEach(compName => {
-            new RegExp(`<\\s*${compName}(?:\\/>|\\s+(?:.|\\s)*?\\/>)`, `g`)
-              .exec(template)
-              .forEach(match => { console.log(match) })
+            const regx = new RegExp(`<\\s*${compName}(?:\\/>|\\s+(?:.|\\s)*?\\/>)`, `g`)
+            template = template.replace(regx, (compTag) => {
+              // 여기서 props를 취득한다.
+              props[compName] = {}
+              compTag
+                .match(/{\.\.\.+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
+                .forEach(attr => {
+
+                })
+              return `<div hb-dom=${compName}></div>`
+            })
           })
         }
 
@@ -69,6 +80,10 @@ const Hayabusa = (() => {
         return this.el
       },
 
+      render (_ = vali(hb.template, T.isStr)) {
+
+      },
+
       find (selector, _ = vali(selector, T.isStr)) {
         const els = Array.prototype.slice.call(this.el.querySelectorAll(selector))
         return els.length === 1 ? els[0] : els
@@ -76,9 +91,9 @@ const Hayabusa = (() => {
 
       insertAt (selOrEl) {
         if (T.isStr(selOrEl)) {
-          document.querySelectorAll(selOrEl).forEach(el => el.appendChild(this.render()))
+          document.querySelectorAll(selOrEl).forEach(el => el.appendChild(this.makeEl()))
         } else if (T.isDom(selOrEl)) {
-          selOrEl.appendChild(this.render())
+          selOrEl.appendChild(this.makeEl())
         }
       },
 
@@ -99,7 +114,7 @@ const extention1 = {
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
-    <HBComp2 />
+    <HBComp2 id='111'/>
   </div>`,
   listener: {
     '#kk click' () { console.log(this.compName) },
@@ -114,7 +129,7 @@ const extention2 = {
 }
 
 const hbDom = Hayabusa({compName: `base3123`}).with(extention1)
-const hbDom2 = Hayabusa({compName: `HBComp2`}).with(extention2)
+// const hbDom2 = Hayabusa({compName: `HBComp2`}).with(extention2)
 
 hbDom.insertAt('#test')
 
