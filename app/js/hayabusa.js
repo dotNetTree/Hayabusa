@@ -1,4 +1,16 @@
 const Hayabusa = (_ => {
+  const toArray = s => Array.prototype.slice.call(s)
+  const groupBy = (arr, hashF) => {
+    const groups = {}
+    arr.forEach((el) => {
+      const key = hashF(el)
+      if (!(key in groups)) groups[key] = []
+      groups[key].push(el)
+    })
+    return Object
+            .keys(groups)
+            .map(key => { return { key: key, values: groups[key] } })
+  }
   const instance = (cls, arg) => Object.assign({ __proto__: cls }, arg || { })
   const chainof = (cls, target) => {
     while (target = target.__proto__) if (target === cls) return true
@@ -46,10 +58,17 @@ const Hayabusa = (_ => {
             template = template.replace(regx, (compTag) => {
               // 여기서 props를 취득한다.
               props[compName] = {}
-              compTag
-                .match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
-                .forEach(attr => {
-                  console.log(attr)
+              const attrs = compTag.match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
+              groupBy(attrs, attr => attr.slice(0, 4) === '{...' ? 'spread' : 'normal')
+                .forEach(group => {
+
+                  const propsGet = {
+                    normal: attr => { console.log(`normal attr - ${attr}`) },
+                    spread: attr => { console.log(`spread attr - ${attr}`) }
+                  }
+
+                  group.values.forEach(attr => propsGet[group.key](attr))
+
                 })
               return `<div hb-dom=${compName}></div>`
             })
@@ -85,13 +104,14 @@ const Hayabusa = (_ => {
       },
 
       find (selector, _ = vali(selector, T.isStr)) {
-        const els = Array.prototype.slice.call(this.el.querySelectorAll(selector))
+        const els = toArray(this.el.querySelectorAll(selector))
         return els.length === 1 ? els[0] : els
       },
 
       insertAt (selOrEl) {
         if (T.isStr(selOrEl)) {
-          document.querySelectorAll(selOrEl).forEach(el => el.appendChild(this.makeEl()))
+          document.querySelectorAll(selOrEl)
+                  .forEach(el => el.appendChild(this.makeEl()))
         } else if (T.isDom(selOrEl)) {
           selOrEl.appendChild(this.makeEl())
         }
@@ -114,7 +134,7 @@ const extention1 = {
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
-    <HBComp2 id='111' num=3 list={list} {...spead}/>
+    <HBComp2 id='111' url="http://yanolja.com" num=3 list={list} {...spread}/>
   </div>`,
   listener: {
     '#kk click' () { console.log(this.compName) },
