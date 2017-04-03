@@ -52,18 +52,26 @@ const Hayabusa = (_ => {
         let props = null
         if (this.ds !== null) {
           props = {}
+
           // template에서 dependancy로 설정된 single tag를 찾는다.
           this.ds.forEach(compName => {
             const regx = new RegExp(`<\\s*${compName}(?:\\/>|\\s+(?:.|\\s)*?\\/>)`, `g`)
+            // component tag를 일반 div로 바꿔놓는다.
             template = template.replace(regx, (compTag) => {
               // 여기서 props를 취득한다.
               props[compName] = {}
+
               const attrs = compTag.match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
               groupBy(attrs, attr => attr.slice(0, 4) === '{...' ? 'spread' : 'normal')
                 .forEach(group => {
 
+                  // TODO: 추후에 다른 곳으로 이동 시켜야 함.
                   const propsGet = {
-                    normal: attr => { console.log(`normal attr - ${attr}`) },
+                    normal: attr => {
+                      const [key, val] = attr.split(`=`)
+                      console.log(`normal attr - ${attr}`)
+                      console.log(`key := [${key}] val := [${val}]`)
+                    },
                     spread: attr => { console.log(`spread attr - ${attr}`) }
                   }
 
