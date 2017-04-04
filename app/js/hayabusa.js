@@ -1,3 +1,22 @@
+const lazy = (_ => {
+  const gene = function *(iter) { for (const v of iter) yield v }
+  const filter = function *(g, f) { for (const v of g) if (f(v)) yield v }
+  const map = function *(g, f) { for (const v of g) yield f(v) }
+  const Lazy = class {
+    constructor (iter) { this.seed = gene(iter) }
+    [Symbol.iterator] () { return this.seed }
+    filter (f) {
+      this.seed = filter(this.seed, f)
+      return this
+    }
+    map (f) {
+      this.seed = map(this.seed, f)
+      return this
+    }
+  }
+  return v => new Lazy(v)
+})()
+
 const Hayabusa = (_ => {
   const toArray = s => Array.prototype.slice.call(s)
   const groupBy = (arr, hashF) => {
@@ -11,6 +30,9 @@ const Hayabusa = (_ => {
             .keys(groups)
             .map(key => { return { key: key, values: groups[key] } })
   }
+
+
+
   const instance = (cls, arg) => Object.assign({ __proto__: cls }, arg || { })
   const chainof = (cls, target) => {
     while (target = target.__proto__) if (target === cls) return true
@@ -62,17 +84,32 @@ const Hayabusa = (_ => {
               props[compName] = {}
 
               const attrs = compTag.match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
-              groupBy(attrs, attr => attr.slice(0, 4) === '{...' ? 'spread' : 'normal')
-                .forEach(group => {
+              groupBy(attrs, attr => {
+                let type = attr.slice(0, 4) === '{...' ? 'spread'
+                         : /{.+}/g.test(attr.split(`=`)[1]) ? 'obj'
+                         : 'literal'
+                return type
+              }).forEach(group => {
 
                   // TODO: 추후에 다른 곳으로 이동 시켜야 함.
                   const propsGet = {
-                    normal: attr => {
-                      const [key, val] = attr.split(`=`)
-                      console.log(`normal attr - ${attr}`)
-                      console.log(`key := [${key}] val := [${val}]`)
+                    literal: attr => {
+                      let [key, val] = attr.split(`=`)
+                      val = /(['|"]).*\1/g.test(val)? val.slice(1).slice(0, val.length - 2)
+                          : val === 'true' ? true
+                          : val === 'false' ? false
+                          : !isNaN(parseInt(val)) ? Number(val)
+                          : val
+                      // console.log(`literal attr - ${attr}`)
+                      console.log(typeof val);
+                      console.log(`val := [${val}]`)
                     },
-                    spread: attr => { console.log(`spread attr - ${attr}`) }
+                    obj: attr => {
+                      const [key, val] = attr.split(`=`)
+                      // console.log(`obj attr - ${attr}`)
+                      // console.log(`key := [${key}] val := [${val}]`)
+                    },
+                    spread: attr => { /*console.log(`spread attr - ${attr}`)*/ }
                   }
 
                   group.values.forEach(attr => propsGet[group.key](attr))
@@ -142,7 +179,8 @@ const extention1 = {
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
-    <HBComp2 id='111' url="http://yanolja.com" num=3 list={list} {...spread}/>
+    <HBComp2 id='111' url="http://yanolja.com" num=3 name=강승철
+    test1="true" test2=true test3='' list={list} {...spread}/>
   </div>`,
   listener: {
     '#kk click' () { console.log(this.compName) },
