@@ -13,6 +13,10 @@ const Hayabusa = (_ => {
             .map(key => { return { key: key, values: groups[key] } })
   }
 
+  const getVal = function (keyPath) {
+    return /[\w\d\[\]\.'"]+/.test(keyPath) ? eval(keyPath) : null
+  }
+
   const propsGet = {
     literal (attr) {
       let [key, val] = attr.split(`=`)
@@ -26,12 +30,12 @@ const Hayabusa = (_ => {
     obj (attr) {
       let [key, val] = attr.split(`=`)
       val = val.slice(1).slice(0, val.length - 2)
-      val = /[\w\d\[\]\.'"]+/.test(val) ? eval(val) : null  // !주의 - eval이 사용되었음.
+      val = getVal.bind(this)(val)  // !주의 - eval이 사용되었음.
       return {[key]: val}
     },
     spread (spread) {
       let val = spread.slice(4).slice(0, spread.length - 5)
-      val = /[\w\d\[\]\.'"]+/.test(val) ? eval(val) : null  // !주의 - eval이 사용되었음.
+      val = getVal.bind(this)(val)   // !주의 - eval이 사용되었음.
       val = Object.keys(val) !== 0 ? val : null
       return val
     }
@@ -75,7 +79,7 @@ const Hayabusa = (_ => {
         const rootEl = document.createElement('div')
 
         let template = this.render()
-        let props = null
+        let props = null  // 자식 component에게 전달해야 할 props
         let inc = 0
         if (this.ds !== null && this.ds !== undefined) {
           props = {}
@@ -85,7 +89,7 @@ const Hayabusa = (_ => {
             // component tag를 일반 div로 바꿔놓는다.
             template = template.replace(regx, (compTag) => {
               inc += 1
-              // 여기서 props를 취득한다.
+              // 여기서 자식에게 전해줄 props를 취득한다.
               props[`${compName}$$${inc}`] = groupBy(
                 compTag.match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g),
                 attr => attr.slice(0, 4) === '{...' ? 'spread'
@@ -100,6 +104,10 @@ const Hayabusa = (_ => {
             })
           })
         }
+
+        template = template.replace(/{.+?}/g, keyPath => {
+          return getVal.bind(this)(keyPath.slice(1).slice(0, keyPath.length - 2))
+        })
 
         rootEl.innerHTML = template
 
@@ -127,7 +135,7 @@ const Hayabusa = (_ => {
             const [realCompName] = compName.split('$$')
             const dummyEl = this.el.querySelector(`div[hb-dom='${compName}']`)
             const hb = hbContainer[realCompName]
-            const el = Object.assign(hb, props[compName]).makeEl()
+            const el = Object.assign(hb, { 'props': props[compName] }).makeEl()
             dummyEl.parentNode.replaceChild(el, dummyEl)
           })
         }
@@ -171,8 +179,8 @@ const extention1 = {
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
-    <HBComp2 />
-    <HBComp2 id='111' url="http://yanolja.com" num=3 name=강승철
+    <HBComp2 content='이게 출력..'/>
+    <HBComp2 content='여기서는 이게 출력!!' id='111' url="http://yanolja.com" num=3 name=강승철
     test1="true" test2=true test3='' name2={this.name} {...this.obj}/>
   </div>`,
   listener: {
@@ -183,8 +191,12 @@ const extention1 = {
 
 const extention2 = {
   template: `
-  <div>extention2</div>
-  `
+  <div>{this.props.content}</div>
+  `,
+  render () {
+    console.log(this.props);
+    return this.template
+  }
 }
 
 const hbDom2 = Hayabusa({compName: `HBComp2`}).with(extention2)
