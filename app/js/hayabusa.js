@@ -1,25 +1,7 @@
-const lazy = (_ => {
-  const gene = function *(iter) { for (const v of iter) yield v }
-  const filter = function *(g, f) { for (const v of g) if (f(v)) yield v }
-  const map = function *(g, f) { for (const v of g) yield f(v) }
-  const Lazy = class {
-    constructor (iter) { this.seed = gene(iter) }
-    [Symbol.iterator] () { return this.seed }
-    filter (f) {
-      this.seed = filter(this.seed, f)
-      return this
-    }
-    map (f) {
-      this.seed = map(this.seed, f)
-      return this
-    }
-  }
-  return v => new Lazy(v)
-})()
-
 const Hayabusa = (_ => {
   const toArray = s => Array.prototype.slice.call(s)
   const groupBy = (arr, hashF) => {
+    if (arr === null) return []
     const groups = {}
     arr.forEach((el) => {
       const key = hashF(el)
@@ -92,30 +74,29 @@ const Hayabusa = (_ => {
       makeEl () {
         const rootEl = document.createElement('div')
 
-        let template = this.template
+        let template = this.render()
         let props = null
-        if (this.ds !== null) {
+        let inc = 0
+        if (this.ds !== null && this.ds !== undefined) {
           props = {}
-
           // template에서 dependancy로 설정된 single tag를 찾는다.
           this.ds.forEach(compName => {
             const regx = new RegExp(`<\\s*${compName}(?:\\/>|\\s+(?:.|\\s)*?\\/>)`, `g`)
             // component tag를 일반 div로 바꿔놓는다.
             template = template.replace(regx, (compTag) => {
+              inc += 1
               // 여기서 props를 취득한다.
-              props[compName] = groupBy(
+              props[`${compName}$$${inc}`] = groupBy(
                 compTag.match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g),
                 attr => attr.slice(0, 4) === '{...' ? 'spread'
-                                         : /{.+}/g.test(attr.split(`=`)[1]) ? 'obj'
-                                         : 'literal'
-                ).map(group => group.values
-                                .map(attr => propsGet[group.key].bind(this)(attr))
-                                .reduce((accu, curr) => Object.assign(accu, curr))
-                ).reduce((accu, curr) => Object.assign(accu, curr))
+                     : /{.+}/g.test(attr.split(`=`)[1]) ? 'obj'
+                     : 'literal'
+              ).map(group => group.values
+                              .map(attr => propsGet[group.key].bind(this)(attr))
+                              .reduce((accu, curr) => Object.assign(accu, curr))
+              ).reduce((accu, curr) => Object.assign(accu, curr), {})
 
-                console.log(props[compName])
-
-              return `<div hb-dom=${compName}></div>`
+              return `<div hb-dom='${compName}$$${inc}'></div>`
             })
           })
         }
@@ -141,11 +122,21 @@ const Hayabusa = (_ => {
             })
         }
 
+        if (props !== null) {
+          Object.keys(props).forEach(compName => {
+            const [realCompName] = compName.split('$$')
+            const dummyEl = this.el.querySelector(`div[hb-dom='${compName}']`)
+            const hb = hbContainer[realCompName]
+            const el = Object.assign(hb, props[compName]).makeEl()
+            dummyEl.parentNode.replaceChild(el, dummyEl)
+          })
+        }
+
         return this.el
       },
 
-      render (_ = vali(hb.template, T.isStr)) {
-
+      render (_ = vali(this.template, T.isStr)) {
+        return this.template
       },
 
       find (selector, _ = vali(selector, T.isStr)) {
@@ -168,7 +159,6 @@ const Hayabusa = (_ => {
 
     // DI시 사용할 container에 적재한다.
     hbContainer[spec.compName] = hb
-
     return hb
   }
 })()
@@ -181,6 +171,7 @@ const extention1 = {
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
+    <HBComp2 />
     <HBComp2 id='111' url="http://yanolja.com" num=3 name=강승철
     test1="true" test2=true test3='' name2={this.name} {...this.obj}/>
   </div>`,
@@ -196,8 +187,8 @@ const extention2 = {
   `
 }
 
+const hbDom2 = Hayabusa({compName: `HBComp2`}).with(extention2)
 const hbDom = Hayabusa({compName: `base3123`}).with(extention1)
-// const hbDom2 = Hayabusa({compName: `HBComp2`}).with(extention2)
 
 hbDom.insertAt('#test')
 
