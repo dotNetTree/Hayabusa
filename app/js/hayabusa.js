@@ -31,7 +31,29 @@ const Hayabusa = (_ => {
             .map(key => { return { key: key, values: groups[key] } })
   }
 
-
+  const propsGet = {
+    literal (attr) {
+      let [key, val] = attr.split(`=`)
+      val = /(['|"]).*\1/g.test(val) ? val.slice(1).slice(0, val.length - 2)
+          : val === 'true' ? true
+          : val === 'false' ? false
+          : !isNaN(parseInt(val)) ? Number(val)
+          : val
+      return {[key]: val}
+    },
+    obj (attr) {
+      let [key, val] = attr.split(`=`)
+      val = val.slice(1).slice(0, val.length - 2)
+      val = /[\w\d\[\]\.'"]+/.test(val) ? eval(val) : null  // !주의 - eval이 사용되었음.
+      return {[key]: val}
+    },
+    spread (spread) {
+      let val = spread.slice(4).slice(0, spread.length - 5)
+      val = /[\w\d\[\]\.'"]+/.test(val) ? eval(val) : null  // !주의 - eval이 사용되었음.
+      val = Object.keys(val) !== 0 ? val : null
+      return val
+    }
+  }
 
   const instance = (cls, arg) => Object.assign({ __proto__: cls }, arg || { })
   const chainof = (cls, target) => {
@@ -81,40 +103,18 @@ const Hayabusa = (_ => {
             // component tag를 일반 div로 바꿔놓는다.
             template = template.replace(regx, (compTag) => {
               // 여기서 props를 취득한다.
-              props[compName] = {}
+              props[compName] = groupBy(
+                compTag.match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g),
+                attr => attr.slice(0, 4) === '{...' ? 'spread'
+                                         : /{.+}/g.test(attr.split(`=`)[1]) ? 'obj'
+                                         : 'literal'
+                ).map(group => group.values
+                                .map(attr => propsGet[group.key].bind(this)(attr))
+                                .reduce((accu, curr) => Object.assign(accu, curr))
+                ).reduce((accu, curr) => Object.assign(accu, curr))
 
-              const attrs = compTag.match(/{\.\.\..+?}|(\w*=(["|']*).+?\2|{.+})(?=\s|(?=>)|(?=\/>))/g)
-              groupBy(attrs, attr => {
-                let type = attr.slice(0, 4) === '{...' ? 'spread'
-                         : /{.+}/g.test(attr.split(`=`)[1]) ? 'obj'
-                         : 'literal'
-                return type
-              }).forEach(group => {
+                console.log(props[compName])
 
-                  // TODO: 추후에 다른 곳으로 이동 시켜야 함.
-                  const propsGet = {
-                    literal: attr => {
-                      let [key, val] = attr.split(`=`)
-                      val = /(['|"]).*\1/g.test(val)? val.slice(1).slice(0, val.length - 2)
-                          : val === 'true' ? true
-                          : val === 'false' ? false
-                          : !isNaN(parseInt(val)) ? Number(val)
-                          : val
-                      // console.log(`literal attr - ${attr}`)
-                      console.log(typeof val);
-                      console.log(`val := [${val}]`)
-                    },
-                    obj: attr => {
-                      const [key, val] = attr.split(`=`)
-                      // console.log(`obj attr - ${attr}`)
-                      // console.log(`key := [${key}] val := [${val}]`)
-                    },
-                    spread: attr => { /*console.log(`spread attr - ${attr}`)*/ }
-                  }
-
-                  group.values.forEach(attr => propsGet[group.key](attr))
-
-                })
               return `<div hb-dom=${compName}></div>`
             })
           })
@@ -174,13 +174,15 @@ const Hayabusa = (_ => {
 })()
 
 const extention1 = {
+  name: 'kang',
+  obj: { obj_name : 'spread1', obj_age : 38 },
   ds: ['HBComp2'],
   template: `
   <div>
     <button id='kk'>1111</button>
     <button id='kk2'>1111</button>
     <HBComp2 id='111' url="http://yanolja.com" num=3 name=강승철
-    test1="true" test2=true test3='' list={list} {...spread}/>
+    test1="true" test2=true test3='' name2={this.name} {...this.obj}/>
   </div>`,
   listener: {
     '#kk click' () { console.log(this.compName) },
